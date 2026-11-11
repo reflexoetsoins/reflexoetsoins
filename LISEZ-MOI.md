@@ -21,4 +21,3 @@ Ne jamais mettre ce fichier sur GitHub, ni l'envoyer par mail.
 
 En cas d'échec : 'mode_debug' => true, refaire un essai pour lire l'erreur, puis remettre false.
 Causes habituelles : mot de passe, port, expéditeur différent de l'identifiant.
-
