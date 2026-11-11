@@ -769,7 +769,7 @@ class PHPMailer
      *
      * @var string
      */
-    const VERSION = '7.2.0';
+    const VERSION = '7.1.1';
 
     /**
      * Error severity: message only, continue processing.
@@ -1487,8 +1487,8 @@ class PHPMailer
      * Check that a string looks like an email address.
      * Validation patterns supported:
      * * `auto` Pick best pattern automatically;
-     * * `pcre8` (deprecated, will convert to PHP validator) Use the squiloople.com pattern, requires PCRE > 8.0
-     * * `pcre` (deprecated, will convert to PHP validator) Use old PCRE implementation, kept for BC;
+     * * `pcre8` Use the squiloople.com pattern, requires PCRE > 8.0;
+     * * `pcre` Use old PCRE implementation;
      * * `php` Use PHP built-in FILTER_VALIDATE_EMAIL;
      * * `html5` Use the pattern given by the HTML5 spec for 'email' type form input elements.
      * * `eai` Use a pattern similar to the HTML5 spec for 'email' and to firefox, extended to support EAI (RFC6530).
@@ -1504,8 +1504,7 @@ class PHPMailer
      * You can also set the PHPMailer::$validator static to a callable, allowing built-in methods to use your validator.
      *
      * @param string          $address       The email address to check
-     * @param string|callable $patternselect Which pattern to use;
-     *                                        the `pcre` and `pcre8` patterns are deprecated
+     * @param string|callable $patternselect Which pattern to use
      *
      * @return bool
      */
@@ -1523,7 +1522,7 @@ class PHPMailer
             return false;
         }
         switch ($patternselect) {
-            case 'pcre': //Deprecated, kept for BC
+            case 'pcre': //Kept for BC
             case 'pcre8':
                 /*
                  * A more complex and more permissive version of the RFC5322 regex on which FILTER_VALIDATE_EMAIL
@@ -2193,17 +2192,12 @@ class PHPMailer
      */
     public function setSMTPXclientAttribute($name, $value)
     {
-        if (!in_array($name, SMTP::$xclient_allowed_attributes, true)) {
+        if (!in_array($name, SMTP::$xclient_allowed_attributes)) {
             return false;
         }
         if (isset($this->SMTPXClient[$name]) && $value === null) {
             unset($this->SMTPXClient[$name]);
         } elseif ($value !== null) {
-            if (!is_string($value)) {
-                //Reject invalid XCLIENT attributes
-                return false;
-            }
-            //Values are stored raw and xtext-encoded at send time
             $this->SMTPXClient[$name] = $value;
         }
 
@@ -2254,17 +2248,7 @@ class PHPMailer
             $smtp_from = $this->Sender;
         }
         if (count($this->SMTPXClient)) {
-            if (!$this->smtp->xclient($this->SMTPXClient)) {
-                throw new Exception($this->smtp->getError()['error'], self::STOP_CRITICAL);
-            }
-            //XCLIENT success resets the session to the greeting protocol stage,
-            //so the client must send EHLO again before starting a transaction.
-            if ($this->Helo) {
-                $hello = $this->Helo;
-            } else {
-                $hello = $this->serverHostname();
-            }
-            $this->smtp->hello($hello);
+            $this->smtp->xclient($this->SMTPXClient);
         }
         if (!$this->smtp->mail($smtp_from)) {
             $this->setError(self::lang('from_failed') . $smtp_from . ' : ' . implode(',', $this->smtp->getError()));

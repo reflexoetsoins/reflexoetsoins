@@ -39,13 +39,45 @@ $config = null;
 foreach ($cheminsConfig as $chemin) {
     if (is_file($chemin)) { $config = require $chemin; break; }
 }
+// Sans fichier de réglages : envoi par la fonction mail() de l'hébergeur (aucun mot de passe nécessaire).
+// Ces valeurs ne contiennent rien de secret : elles peuvent être dans GitHub.
+$defauts = [
+    'methode'              => 'mail',
+    'expediteur_email'     => 'contact@reflexo-soins.fr',
+    'expediteur_nom'       => 'Site internet — Reflexo & Soins by MG',
+    'destinataire_email'   => 'magreflexo84@gmail.com',
+    'destinataire_nom'     => 'Marie Gosselin',
+    'notification_reflekt' => 'bonjour@reflektweb.com',
+    'nom_du_site'          => 'Reflexo & Soins by MG',
+    'url_du_site'          => 'https://www.reflexo-soins.fr',
+    'page_merci'           => '/merci/',
+    'limite_par_heure'     => 5,
+    'mode_debug'           => false,
+];
 if (!is_array($config)) {
-    error_log('[formulaire] config-formulaire.php introuvable');
-    repondre(false, "Le formulaire n'est pas encore configuré. Merci de nous contacter par téléphone.", 500);
+    $config = $defauts;
+} else {
+    $config = array_merge($defauts, $config);
+    // Fichier de réglages présent avec un mot de passe : envoi SMTP authentifié.
+    $mdp = (string)($config['smtp_mot_de_passe'] ?? '');
+    $config['methode'] = ($mdp !== '' && $mdp !== 'A_REMPLIR_SUR_L_HEBERGEMENT') ? ($config['methode_si_mdp'] ?? 'smtp') : 'mail';
 }
-if (($config['smtp_mot_de_passe'] ?? '') === '' || $config['smtp_mot_de_passe'] === 'A_REMPLIR_SUR_L_HEBERGEMENT') {
-    error_log('[formulaire] mot de passe SMTP non renseigné');
-    repondre(false, "Le formulaire n'est pas encore configuré. Merci de nous contacter par téléphone.", 500);
+
+/** Prépare l'envoi : SMTP authentifié si configuré, sinon fonction mail() de l'hébergeur. */
+function preparerEnvoi(PHPMailer $m, array $c): void {
+    if (($c['methode'] ?? 'mail') === 'smtp') {
+        $m->isSMTP();
+        $m->Host       = (string)$c['smtp_hote'];
+        $m->Port       = (int)$c['smtp_port'];
+        $m->SMTPAuth   = true;
+        $m->Username   = (string)$c['smtp_utilisateur'];
+        $m->Password   = (string)$c['smtp_mot_de_passe'];
+        $m->SMTPSecure = (($c['smtp_securite'] ?? 'ssl') === 'tls') ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
+        $m->Timeout    = 15;
+    } else {
+        $m->isMail();
+    }
+    $m->CharSet = PHPMailer::CHARSET_UTF8;
 }
 
 // Anti-spam : champ piège
@@ -129,21 +161,12 @@ $texte .= "\nMessage :\n{$message}\n\nPour répondre, utilisez « Répondre » :
 
 $mail = new PHPMailer(true);
 try {
-    $mail->isSMTP();
-    $mail->Host       = (string)$config['smtp_hote'];
-    $mail->Port       = (int)$config['smtp_port'];
-    $mail->SMTPAuth   = true;
-    $mail->Username   = (string)$config['smtp_utilisateur'];
-    $mail->Password   = (string)$config['smtp_mot_de_passe'];
-    $mail->SMTPSecure = (($config['smtp_securite'] ?? 'ssl') === 'tls') ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
-    $mail->Timeout    = 15;
-    $mail->CharSet    = PHPMailer::CHARSET_UTF8;
+    preparerEnvoi($mail, $config);
     if (!empty($config['mode_debug'])) { $mail->SMTPDebug = 2; $mail->Debugoutput = 'error_log'; }
 
     $mail->setFrom((string)$config['expediteur_email'], (string)($config['expediteur_nom'] ?? ''));
     $mail->addAddress((string)$config['destinataire_email'], (string)($config['destinataire_nom'] ?? ''));
     $mail->addReplyTo($email, $nom);
-    if (!empty($config['copie_cachee'])) { $mail->addBCC((string)$config['copie_cachee']); }
 
     $mail->isHTML(true);
     $mail->Subject = $objet;
@@ -151,33 +174,23 @@ try {
     $mail->AltBody = $texte;
     $mail->send();
 } catch (MailException $e) {
-    error_log('[formulaire] échec SMTP : ' . $mail->ErrorInfo);
+    error_log('[formulaire] échec envoi (' . $config['methode'] . ') : ' . $mail->ErrorInfo);
     $detail = !empty($config['mode_debug']) ? ' (Détail : ' . $mail->ErrorInfo . ')' : '';
     repondre(false, "Désolé, l'envoi n'a pas fonctionné. Merci de réessayer ou de nous appeler." . $detail, 502);
 }
 
-// Notification sans donnee personnelle (date + objet seulement)
-if (!empty($config['notification_email'])) {
-    $notif = new PHPMailer(true);
+// Notification à Reflekt (suivi Pilotage) : uniquement la date et l'objet, sans nom, coordonnées ni message.
+if (!empty($config['notification_reflekt'])) {
     try {
-        $notif->isSMTP();
-        $notif->Host       = (string)$config['smtp_hote'];
-        $notif->Port       = (int)$config['smtp_port'];
-        $notif->SMTPAuth   = true;
-        $notif->Username   = (string)$config['smtp_utilisateur'];
-        $notif->Password   = (string)$config['smtp_mot_de_passe'];
-        $notif->SMTPSecure = (($config['smtp_securite'] ?? 'ssl') === 'tls') ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
-        $notif->Timeout    = 15;
-        $notif->CharSet    = PHPMailer::CHARSET_UTF8;
-        $notif->setFrom((string)$config['expediteur_email'], (string)($config['expediteur_nom'] ?? ''));
-        $notif->addAddress((string)$config['notification_email']);
-        $notif->isHTML(false);
-        $domaine = preg_replace('#^https?://(www\.)?#', '', rtrim((string)($config['url_du_site'] ?? ''), '/'));
-        $notif->Subject = '[Formulaire Reflekt] ' . $domaine . ' · Demande transmise · ' . (new DateTime('now', new DateTimeZone('Europe/Paris')))->format('Y-m-d H:i');
-        $notif->Body    = "Une demande a été envoyée depuis le formulaire de {$nomSite}, le {$date}.\nObjet : " . ($sujet !== '' ? $sujet : '—') . "\n\n(Aucune donnée du visiteur n'est transmise.)\n";
-        $notif->send();
+        $n = new PHPMailer(true);
+        preparerEnvoi($n, $config);
+        $n->setFrom((string)$config['expediteur_email'], (string)($config['expediteur_nom'] ?? ''));
+        $n->addAddress((string)$config['notification_reflekt']);
+        $n->Subject = 'Nouvelle demande reçue sur le site ' . $nomSite;
+        $n->Body    = "Une demande a été envoyée depuis le formulaire de {$nomSite} le {$date}.\nObjet choisi : " . ($sujet !== '' ? $sujet : '—') . "\n\nAucune donnée personnelle n'est transmise dans cette notification.";
+        $n->send();
     } catch (MailException $e) {
-        error_log('[formulaire] notification non envoyée : ' . $notif->ErrorInfo);
+        error_log('[formulaire] notification Reflekt non envoyée : ' . $n->ErrorInfo);
     }
 }
 

@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /merci/
 
 Sitemap: https://www.reflexo-soins.fr/sitemap.xml
