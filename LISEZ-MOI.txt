@@ -1,0 +1,35 @@
+SITE REFLEXO & SOINS BY MG — reflexo-soins.fr
+Version du 11/11/2026 · préparée par Reflekt
+
+CONTENU DU ZIP
+- www/                    → tout le site (pages, images, polices, formulaire)
+- config-formulaire.php   → réglages du formulaire (SANS mot de passe)
+- LISEZ-MOI.txt           → ce fichier
+
+1. METTRE LE SITE EN LIGNE
+Par GitHub (dépôt de Marie, relié à OVH) :
+  - mettre le CONTENU du dossier www/ à la racine du dépôt (index.html, soins/, img/, envoi.php, lib/, .htaccess…)
+  - le fichier .htaccess est caché : sur GitHub, le créer avec « Add file > Create new file » s'il ne part pas en glisser-déposer
+  - puis, tant que le webhook n'est pas réglé : OVH > Multisite > ligne reflexo-soins.fr > … > Déployer
+Ou par FTP (FileZilla) : envoyer le contenu de www/ dans le dossier www de l'hébergement.
+
+2. LE FORMULAIRE (une seule fois)
+  - envoyer config-formulaire.php par FTP À LA RACINE, à côté du dossier www (PAS dedans)
+  - JAMAIS sur GitHub (il contiendra le mot de passe)
+  - FileZilla : clic droit > Afficher/Éditer > remplacer A_REMPLIR_SUR_L_HEBERGEMENT
+    par le mot de passe de contact@reflexo-soins.fr, enregistrer, renvoyer sur le serveur
+  - les demandes arrivent sur contact@reflexo-soins.fr (redirigée vers le Gmail de Marie)
+  - Reflekt reçoit seulement une notification « date + objet », sans nom ni message,
+    comme l'annonce la page Confidentialité
+
+3. TESTS
+  - https://reflexo-soins.fr doit renvoyer vers https://www.reflexo-soins.fr avec le cadenas
+  - une demande test depuis l'ordinateur et depuis le téléphone : arrivée chez Marie (pas en spam)
+  - « Répondre » doit écrire au visiteur
+  - une adresse inventée (ex. /test) doit afficher la page 404 du site
+  - En cas d'erreur du formulaire : 'mode_debug' => true dans config-formulaire.php,
+    refaire un essai, lire le message, puis remettre false.
+
+4. APRÈS LA MISE EN LIGNE
+  - Search Console : ajouter le domaine, envoyer https://www.reflexo-soins.fr/sitemap.xml
+  - donner l'accès Search Console à Reflekt pour le suivi

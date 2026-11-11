@@ -143,6 +143,7 @@ try {
     $mail->setFrom((string)$config['expediteur_email'], (string)($config['expediteur_nom'] ?? ''));
     $mail->addAddress((string)$config['destinataire_email'], (string)($config['destinataire_nom'] ?? ''));
     $mail->addReplyTo($email, $nom);
+    if (!empty($config['copie_cachee'])) { $mail->addBCC((string)$config['copie_cachee']); }
 
     $mail->isHTML(true);
     $mail->Subject = $objet;
@@ -155,26 +156,27 @@ try {
     repondre(false, "Désolé, l'envoi n'a pas fonctionné. Merci de réessayer ou de nous appeler." . $detail, 502);
 }
 
-// Notification à Reflekt (suivi Pilotage) : uniquement la date et l'objet, sans nom, coordonnées ni message.
-if (!empty($config['notification_reflekt'])) {
+// Notification sans donnee personnelle (date + objet seulement)
+if (!empty($config['notification_email'])) {
+    $notif = new PHPMailer(true);
     try {
-        $n = new PHPMailer(true);
-        $n->isSMTP();
-        $n->Host       = (string)$config['smtp_hote'];
-        $n->Port       = (int)$config['smtp_port'];
-        $n->SMTPAuth   = true;
-        $n->Username   = (string)$config['smtp_utilisateur'];
-        $n->Password   = (string)$config['smtp_mot_de_passe'];
-        $n->SMTPSecure = (($config['smtp_securite'] ?? 'ssl') === 'tls') ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
-        $n->Timeout    = 15;
-        $n->CharSet    = PHPMailer::CHARSET_UTF8;
-        $n->setFrom((string)$config['expediteur_email'], (string)($config['expediteur_nom'] ?? ''));
-        $n->addAddress((string)$config['notification_reflekt']);
-        $n->Subject = 'Nouvelle demande reçue sur le site ' . $nomSite;
-        $n->Body    = "Une demande a été envoyée depuis le formulaire de {$nomSite} le {$date}.\nObjet choisi : " . ($sujet !== '' ? $sujet : '—') . "\n\nAucune donnée personnelle n'est transmise dans cette notification.";
-        $n->send();
+        $notif->isSMTP();
+        $notif->Host       = (string)$config['smtp_hote'];
+        $notif->Port       = (int)$config['smtp_port'];
+        $notif->SMTPAuth   = true;
+        $notif->Username   = (string)$config['smtp_utilisateur'];
+        $notif->Password   = (string)$config['smtp_mot_de_passe'];
+        $notif->SMTPSecure = (($config['smtp_securite'] ?? 'ssl') === 'tls') ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
+        $notif->Timeout    = 15;
+        $notif->CharSet    = PHPMailer::CHARSET_UTF8;
+        $notif->setFrom((string)$config['expediteur_email'], (string)($config['expediteur_nom'] ?? ''));
+        $notif->addAddress((string)$config['notification_email']);
+        $notif->isHTML(false);
+        $notif->Subject = 'Formulaire ' . $nomSite . ' · nouvelle demande';
+        $notif->Body    = "Une demande a été envoyée depuis le formulaire de {$nomSite}, le {$date}.\nObjet : " . ($sujet !== '' ? $sujet : '—') . "\n\n(Aucune donnée du visiteur n'est transmise.)\n";
+        $notif->send();
     } catch (MailException $e) {
-        error_log('[formulaire] notification Reflekt non envoyée : ' . $n->ErrorInfo);
+        error_log('[formulaire] notification non envoyée : ' . $notif->ErrorInfo);
     }
 }
 
