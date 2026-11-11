@@ -1,0 +1,77 @@
+<!-- ============================================================
+  FORMULAIRE DE CONTACT — reflexo-soins.fr
+  1. Coller le bloc <form> à l'endroit voulu de la page Contact.
+  2. Coller le <style> dans la feuille de style (ou dans <head>).
+  3. Coller le <script> juste avant </body>.
+  Ne pas changer les noms des champs : envoi.php en dépend.
+============================================================ -->
+
+<form class="rf-form" id="rf-form" action="envoi.php" method="post" novalidate>
+  <div class="rf-ligne">
+    <div class="rf-champ"><label for="rf-nom">Nom</label>
+      <input type="text" id="rf-nom" name="nom" autocomplete="name" maxlength="100" required></div>
+    <div class="rf-champ"><label for="rf-telephone">Téléphone <small>(facultatif)</small></label>
+      <input type="tel" id="rf-telephone" name="telephone" autocomplete="tel" maxlength="30"></div>
+  </div>
+  <div class="rf-champ"><label for="rf-email">E-mail</label>
+    <input type="email" id="rf-email" name="email" autocomplete="email" maxlength="150" required></div>
+  <div class="rf-champ"><label for="rf-sujet">Objet de la demande</label>
+    <select id="rf-sujet" name="sujet">
+      <option value="Prendre rendez-vous">Prendre rendez-vous</option>
+      <option value="Question sur une séance">Question sur une séance</option>
+      <option value="Partenariat (club, entreprise)">Partenariat (club, entreprise)</option>
+      <option value="Autre">Autre</option>
+    </select></div>
+  <div class="rf-champ"><label for="rf-message">Message</label>
+    <textarea id="rf-message" name="message" maxlength="5000" required></textarea></div>
+  <div class="rf-piege" aria-hidden="true"><label for="rf-site">Ne pas remplir</label>
+    <input type="text" id="rf-site" name="site_web" tabindex="-1" autocomplete="off"></div>
+  <input type="hidden" name="affiche_a" id="rf-affiche">
+  <label class="rf-consent"><input type="checkbox" name="consentement" value="oui" required>
+    <span>J'accepte que mes informations soient utilisées pour répondre à ma demande. Elles ne sont ni revendues ni utilisées à d'autres fins. <a href="confidentialite.html">Politique de confidentialité</a></span></label>
+  <p class="rf-statut" id="rf-statut" role="status" aria-live="polite"></p>
+  <button class="rf-bouton" type="submit" id="rf-bouton">Envoyer ma demande</button>
+</form>
+
+
+<style>
+:root{--rf-texte:#1a1d24;--rf-doux:#5d6472;--rf-bord:#d8dbe1;--rf-champ:#fff;--rf-accent:#6f7d64;--rf-accent-texte:#fff;--rf-focus:#b08d6e;--rf-ok:#1f7a4d;--rf-erreur:#b42318;--rf-rayon:10px}
+.rf-form{display:grid;gap:18px}
+.rf-ligne{display:grid;gap:18px;grid-template-columns:1fr 1fr}
+@media (max-width:560px){.rf-ligne{grid-template-columns:1fr}}
+.rf-champ{display:grid;gap:6px}
+.rf-champ label{font-weight:600;font-size:.95rem}
+.rf-champ label small{font-weight:400;color:var(--rf-doux)}
+.rf-form input[type=text],.rf-form input[type=email],.rf-form input[type=tel],.rf-form select,.rf-form textarea{width:100%;box-sizing:border-box;font:inherit;color:inherit;background:var(--rf-champ);border:1px solid var(--rf-bord);border-radius:var(--rf-rayon);padding:12px 14px}
+.rf-form textarea{min-height:150px;resize:vertical}
+.rf-form input:focus,.rf-form select:focus,.rf-form textarea:focus{outline:none;border-color:var(--rf-focus);box-shadow:0 0 0 3px color-mix(in srgb,var(--rf-focus) 25%,transparent)}
+.rf-consent{display:flex;gap:10px;align-items:flex-start;font-size:.9rem;color:var(--rf-doux)}
+.rf-consent input{margin-top:4px;width:18px;height:18px;flex:none;accent-color:var(--rf-accent)}
+.rf-piege{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}
+.rf-bouton{justify-self:start;font:inherit;font-weight:600;border:0;cursor:pointer;background:var(--rf-accent);color:var(--rf-accent-texte);border-radius:var(--rf-rayon);padding:13px 26px}
+.rf-bouton[disabled]{opacity:.6;cursor:progress}
+.rf-statut{margin:0;padding:12px 14px;border-radius:var(--rf-rayon);font-size:.95rem;display:none}
+.rf-statut.ok{display:block;color:var(--rf-ok);background:color-mix(in srgb,var(--rf-ok) 12%,transparent)}
+.rf-statut.erreur{display:block;color:var(--rf-erreur);background:color-mix(in srgb,var(--rf-erreur) 12%,transparent)}
+
+</style>
+
+<script>
+(function () {
+  var form = document.getElementById('rf-form'); if (!form) return;
+  var statut = document.getElementById('rf-statut'), bouton = document.getElementById('rf-bouton'), texteBouton = bouton.textContent;
+  document.getElementById('rf-affiche').value = Date.now();
+  function afficher(type, msg) { statut.className = 'rf-statut ' + type; statut.textContent = msg; }
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!form.checkValidity()) { afficher('erreur', 'Merci de remplir le nom, une adresse e-mail valide, le message et de cocher la case.'); form.reportValidity(); return; }
+    bouton.disabled = true; bouton.textContent = 'Envoi en cours…'; statut.className = 'rf-statut';
+    fetch(form.action, { method: 'POST', body: new FormData(form), headers: { 'X-Requested-With': 'fetch' } })
+      .then(function (r) { return r.json().catch(function () { return { ok: false, message: "L'envoi n'a pas fonctionné. Merci de réessayer ou de nous appeler." }; }); })
+      .then(function (data) { afficher(data.ok ? 'ok' : 'erreur', data.message); if (data.ok) { form.reset(); document.getElementById('rf-affiche').value = Date.now(); } })
+      .catch(function () { afficher('erreur', 'Connexion impossible. Vérifiez votre réseau ou appelez-nous.'); })
+      .finally(function () { bouton.disabled = false; bouton.textContent = texteBouton; });
+  });
+})();
+</script>
+
