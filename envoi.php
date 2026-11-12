@@ -43,9 +43,26 @@ if (!is_array($config)) {
     error_log('[formulaire] config-formulaire.php introuvable');
     repondre(false, "Le formulaire n'est pas encore configuré. Merci de nous contacter par téléphone. (code R1)", 500);
 }
-if (($config['smtp_mot_de_passe'] ?? '') === '' || $config['smtp_mot_de_passe'] === 'A_REMPLIR_SUR_L_HEBERGEMENT') {
-    error_log('[formulaire] mot de passe SMTP non renseigné');
-    repondre(false, "Le formulaire n'est pas encore configuré. Merci de nous contacter par téléphone. (code R2)", 500);
+// Sans mot de passe dans les réglages : envoi par la fonction mail() d'OVH (aucun secret dans GitHub).
+// Avec un mot de passe : envoi SMTP authentifié, comme avant.
+$mdp = (string)($config['smtp_mot_de_passe'] ?? '');
+$avecSmtp = ($mdp !== '' && $mdp !== 'A_REMPLIR_SUR_L_HEBERGEMENT');
+
+/** Prépare un envoi : SMTP authentifié si un mot de passe est réglé, sinon mail() de l'hébergeur. */
+function preparerEnvoi(PHPMailer $m, array $c, bool $smtp): void {
+    if ($smtp) {
+        $m->isSMTP();
+        $m->Host       = (string)$c['smtp_hote'];
+        $m->Port       = (int)$c['smtp_port'];
+        $m->SMTPAuth   = true;
+        $m->Username   = (string)$c['smtp_utilisateur'];
+        $m->Password   = (string)$c['smtp_mot_de_passe'];
+        $m->SMTPSecure = (($c['smtp_securite'] ?? 'ssl') === 'tls') ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
+        $m->Timeout    = 15;
+    } else {
+        $m->isMail();
+    }
+    $m->CharSet = PHPMailer::CHARSET_UTF8;
 }
 
 // Anti-spam : champ piège
@@ -129,16 +146,8 @@ $texte .= "\nMessage :\n{$message}\n\nPour répondre, utilisez « Répondre » :
 
 $mail = new PHPMailer(true);
 try {
-    $mail->isSMTP();
-    $mail->Host       = (string)$config['smtp_hote'];
-    $mail->Port       = (int)$config['smtp_port'];
-    $mail->SMTPAuth   = true;
-    $mail->Username   = (string)$config['smtp_utilisateur'];
-    $mail->Password   = (string)$config['smtp_mot_de_passe'];
-    $mail->SMTPSecure = (($config['smtp_securite'] ?? 'ssl') === 'tls') ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
-    $mail->Timeout    = 15;
-    $mail->CharSet    = PHPMailer::CHARSET_UTF8;
-    if (!empty($config['mode_debug'])) { $mail->SMTPDebug = 2; $mail->Debugoutput = 'error_log'; }
+    preparerEnvoi($mail, $config, $avecSmtp);
+    if ($avecSmtp && !empty($config['mode_debug'])) { $mail->SMTPDebug = 2; $mail->Debugoutput = 'error_log'; }
 
     $mail->setFrom((string)$config['expediteur_email'], (string)($config['expediteur_nom'] ?? ''));
     $mail->addAddress((string)$config['destinataire_email'], (string)($config['destinataire_nom'] ?? ''));
@@ -151,7 +160,7 @@ try {
     $mail->AltBody = $texte;
     $mail->send();
 } catch (MailException $e) {
-    error_log('[formulaire] échec SMTP : ' . $mail->ErrorInfo);
+    error_log('[formulaire] échec envoi (' . ($avecSmtp ? 'smtp' : 'mail') . ') : ' . $mail->ErrorInfo);
     $detail = !empty($config['mode_debug']) ? ' (Détail : ' . $mail->ErrorInfo . ')' : '';
     repondre(false, "Désolé, l'envoi n'a pas fonctionné. Merci de réessayer ou de nous appeler." . $detail, 502);
 }
@@ -160,15 +169,7 @@ try {
 if (!empty($config['notification_email'])) {
     $notif = new PHPMailer(true);
     try {
-        $notif->isSMTP();
-        $notif->Host       = (string)$config['smtp_hote'];
-        $notif->Port       = (int)$config['smtp_port'];
-        $notif->SMTPAuth   = true;
-        $notif->Username   = (string)$config['smtp_utilisateur'];
-        $notif->Password   = (string)$config['smtp_mot_de_passe'];
-        $notif->SMTPSecure = (($config['smtp_securite'] ?? 'ssl') === 'tls') ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
-        $notif->Timeout    = 15;
-        $notif->CharSet    = PHPMailer::CHARSET_UTF8;
+        preparerEnvoi($notif, $config, $avecSmtp);
         $notif->setFrom((string)$config['expediteur_email'], (string)($config['expediteur_nom'] ?? ''));
         $notif->addAddress((string)$config['notification_email']);
         $notif->isHTML(false);

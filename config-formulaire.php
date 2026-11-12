@@ -7,7 +7,7 @@ return [
     'smtp_port'          => 465,
     'smtp_securite'      => 'ssl',
     'smtp_utilisateur'   => 'contact@reflexo-soins.fr',
-    'smtp_mot_de_passe'  => 'Reflexomail',
+    'smtp_mot_de_passe'  => 'A_REMPLIR_SUR_L_HEBERGEMENT',
     'expediteur_email'   => 'contact@reflexo-soins.fr', // identique à smtp_utilisateur
     'expediteur_nom'     => 'Site internet — Reflexo & Soins',
     'destinataire_email' => 'contact@reflexo-soins.fr', // redirigée vers le Gmail de Marie
