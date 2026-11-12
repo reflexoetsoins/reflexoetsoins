@@ -1,0 +1,24 @@
+FORMULAIRE REFLEXO & SOINS — 3 ÉTAPES (FileZilla)
+
+1. Dossier « 1-SITE-a-mettre-dans-www »
+   → glisser son CONTENU (envoi.php + dossier lib) DANS le dossier www de l'hébergement.
+   Accepter de remplacer les fichiers existants.
+
+2. Dossier « 2-a-mettre-a-la-racine-du-FTP »
+   → glisser config-formulaire.php à la RACINE du FTP, à côté du dossier www (PAS dedans).
+   Accepter de remplacer s'il existe déjà.
+
+3. Sur le serveur, clic droit sur config-formulaire.php > Afficher/Éditer
+   → remplacer A_REMPLIR_SUR_L_HEBERGEMENT par le mot de passe de contact@reflexo-soins.fr
+     (garder les apostrophes autour)
+   → Enregistrer, fermer, répondre OUI pour renvoyer le fichier sur le serveur.
+
+Test : envoyer une demande depuis https://www.reflexo-soins.fr/contact/ en fenêtre privée.
+
+Si le message affiche :
+- « code R1 » → config-formulaire.php n'est pas au bon endroit (étape 2)
+- « code R2 » → le mot de passe n'a pas été enregistré sur le serveur (étape 3)
+- « Désolé, l'envoi n'a pas fonctionné » → mot de passe incorrect : mettre 'mode_debug' => true,
+  réessayer, lire le détail, puis remettre false.
+
+Ne jamais mettre config-formulaire.php sur GitHub.
